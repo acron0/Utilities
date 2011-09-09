@@ -45,16 +45,20 @@ game_entries = soup.findAll('li')
 games = []
 for k in range(len(game_entries)):
 	current = [game_entries[k] for a, b in game_entries[k].attrs if b.find('cat-item') >= 0]
-	if len(current) > 0 and current[0].contents[0].string not in exclude:
-		games.append([game_entry(current[0].contents[0].string, current[0].contents[0].attrs[0][1])])
+	try:
+		if current and current[0].contents[0].string not in exclude:
+			games.append([game_entry(current[0].contents[0].string, current[0].contents[0].attrs[0][1])])
+	except IndexError, AttributeError:
+		pass
 
 # iterate the games, one by one.
-for game in gamesList:
+for game in games:
 	print 'Collecting data for %s ...' % game.name
 
 	page_url = game.page
 	count = 1
 	img_entries = []
+
 	while True:
 		result = urllib.urlopen(page_url)
 		response = result.read()
@@ -63,7 +67,7 @@ for game in gamesList:
 		# filter the html		
 		divs = soup.findAll("div", { "class" : "meta" })
 		for div in divs:
-			links = div.findAll('a', {'title':None})
+			links = div.findAll('a', { 'title': None })
 			if links:
 				try:
 					img_url = div.findAll('a', { 'title': None })[0]['href']
@@ -71,22 +75,22 @@ for game in gamesList:
 					continue
 				
 				add_to_images(cur, game.name, img_url)
-				imgEntries.append(img_url)
-		
-		print "\tFound %s images on page %s" % (len(img_entries), count)
-	
+				img_entries.append(img_url)
+
 		# retry if we can't find an image
 		if len(img_entries) > 0:
 			continue
+
+		print "\tFound %s images on page %s" % (len(img_entries), count)
 	
 		# do we have another page?
 		try:
 			back_div = soup.find("div", { "class" : "navback" }).contents[0]
-		except IndexError:
+		except IndexError, AttributeError:
 			continue
 
 		try:
-			if len(back_div.contents) > 0 and back_div.contents[0].name == 'a':
+			if back_div and back_div.contents[0].name == 'a':
 				page_url = back_div.contents[0]['href']
 				count += 1
 			else:		
