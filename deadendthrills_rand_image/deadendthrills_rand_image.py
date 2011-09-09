@@ -1,10 +1,11 @@
 import urllib
 import re
 import BeautifulSoup
-import random
+import sqlite3
+import os
 
 url = 'http://deadendthrills.com/404/'	# url to generate the 404
-r = random.Random()
+db_name = 'deadendthrills.db'
 exclude = ['Print Art']
 
 # class for game entries
@@ -15,6 +16,22 @@ class gameEntry:
 		
 	def __str__(self):
 		return self.name
+		
+# burn existing db
+try:
+   open(db_name, 'r')
+   os.remove(db_name)
+except IOError as e:
+   pass
+
+# create table
+conn = sqlite3.connect(db_name)
+cur = conn.cursor()
+cur.execute( "CREATE TABLE images (game_name text, img_url text)" )
+
+# set up addToDatabase function
+def addToDatabase(game_name, img_url):
+	cur.execute( "INSERT INTO images VALUES ('%s', '%s' )" % (game_name, img_url) )
 
 # get html
 result = urllib.urlopen(url)
@@ -28,7 +45,7 @@ gameEntries = soup.findAll('li')
 gamesList = []
 for k in range(len(gameEntries)):
 	current = [gameEntries[k] for a, b in gameEntries[k].attrs if b.find('cat-item') >= 0]
-	if(len(current) > 0):
+	if(len(current) > 0 and current[0].contents[0].string not in exclude):
 		gamesList = gamesList + [ gameEntry(current[0].contents[0].string, current[0].contents[0].attrs[0][1]) ]
 
 # iterate the games, one by one.
@@ -49,7 +66,9 @@ for game in gamesList:
 		for metaDiv in metaDivEntries:
 			links = metaDiv.findAll('a', {'title':None})
 			if(links):
-				imgEntries =  imgEntries + [ metaDiv.findAll('a', {'title':None})[0]['href'] ]
+				img_url = metaDiv.findAll('a', {'title':None})[0]['href']
+				addToDatabase(game.name, img_url)
+				imgEntries += [ img_url ]
 		
 		print ''.join(('\tFound ', str(len(imgEntries)), ' images on page ', str(count)))
 	
@@ -66,8 +85,6 @@ for game in gamesList:
 			break
 	
 	print ''.join(('\tTotal: ', str(len(imgEntries)), ' images.'))
-	
-"""
-# randomly select an image
-imageUrl = imgEntries[r.randrange(len(imgEntries))]['href']
-print imageUrl"""
+
+conn.commit()
+conn.close()
