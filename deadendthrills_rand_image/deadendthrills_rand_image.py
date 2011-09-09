@@ -3,7 +3,6 @@ import re
 import BeautifulSoup
 import random
 
-download_to = "Scrape"					# folder
 url = 'http://deadendthrills.com/404/'	# url to generate the 404
 
 r = random.Random()
