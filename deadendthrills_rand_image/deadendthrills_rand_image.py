@@ -9,7 +9,7 @@ db_name = 'deadendthrills.db'
 exclude = ['Print Art']
 
 # class for game entries
-class gameEntry:
+class GameEntry:
 	def __init__(self, name, page):
 		self.name = name
 		self.page = page
@@ -21,17 +21,17 @@ class gameEntry:
 try:
    open(db_name, 'r')
    os.remove(db_name)
-except IOError as e:
+except IOError:
    pass
 
 # create table
 conn = sqlite3.connect(db_name)
 cur = conn.cursor()
-cur.execute( "CREATE TABLE images (game_name text, img_url text)" )
+cur.execute("CREATE TABLE images (game_name text, img_url text)")
 
 # set up addToDatabase function
-def addToDatabase(game_name, img_url):
-	cur.execute( "INSERT INTO images VALUES ('%s', '%s' )" % (game_name, img_url) )
+def add_to_images(cur, game_name, img_url):
+	cur.execute( "INSERT INTO images VALUES (?, ?)" % (game_name, img_url))
 
 # get html
 result = urllib.urlopen(url)
@@ -39,52 +39,66 @@ response = result.read()
 soup = BeautifulSoup.BeautifulSoup(response)
 
 # filter the html
-gameEntries = soup.findAll('li')
+game_entries = soup.findAll('li')
 
 # populate games list
-gamesList = []
-for k in range(len(gameEntries)):
-	current = [gameEntries[k] for a, b in gameEntries[k].attrs if b.find('cat-item') >= 0]
-	if(len(current) > 0 and current[0].contents[0].string not in exclude):
-		gamesList = gamesList + [ gameEntry(current[0].contents[0].string, current[0].contents[0].attrs[0][1]) ]
+games = []
+for k in range(len(game_entries)):
+	current = [game_entries[k] for a, b in game_entries[k].attrs if b.find('cat-item') >= 0]
+	try:
+		if current and current[0].contents[0].string not in exclude:
+			games.append([game_entry(current[0].contents[0].string, current[0].contents[0].attrs[0][1])])
+	except IndexError, AttributeError:
+		pass
 
 # iterate the games, one by one.
-for game in gamesList:
+for game in games:
+	print 'Collecting data for %s ...' % game.name
 
-	print ''.join(('Collecting data for ', game.name, '...'))
-
-	pageUrl = game.page
+	page_url = game.page
 	count = 1
-	imgEntries = []
-	while 1:
-		result = urllib.urlopen(pageUrl)
+	img_entries = []
+
+	while True:
+		result = urllib.urlopen(page_url)
 		response = result.read()
 		soup = BeautifulSoup.BeautifulSoup(response)
 
 		# filter the html		
-		metaDivEntries = soup.findAll("div", { "class" : "meta" })
-		for metaDiv in metaDivEntries:
-			links = metaDiv.findAll('a', {'title':None})
-			if(links):
-				img_url = metaDiv.findAll('a', {'title':None})[0]['href']
-				addToDatabase(game.name, img_url)
-				imgEntries += [ img_url ]
-		
-		print ''.join(('\tFound ', str(len(imgEntries)), ' images on page ', str(count)))
-	
+		divs = soup.findAll("div", { "class" : "meta" })
+		for div in divs:
+			links = div.findAll('a', { 'title': None })
+			if links:
+				try:
+					img_url = div.findAll('a', { 'title': None })[0]['href']
+				except IndexError, KeyError:
+					continue
+				
+				add_to_images(cur, game.name, img_url)
+				img_entries.append(img_url)
+
 		# retry if we can't find an image
-		if len(imgEntries) > 0:
-			pass
+		if len(img_entries) > 0:
+			continue
+
+		print "\tFound %s images on page %s" % (len(img_entries), count)
 	
 		# do we have another page?
-		navBackDiv = soup.find("div", { "class" : "navback" }).contents[0]
-		if(len(navBackDiv.contents) > 0 and navBackDiv.contents[0].name == 'a'):
-			pageUrl = navBackDiv.contents[0]['href']
-			count += 1
-		else:		
-			break
-	
-	print ''.join(('\tTotal: ', str(len(imgEntries)), ' images.'))
+		try:
+			back_div = soup.find("div", { "class" : "navback" }).contents[0]
+		except IndexError, AttributeError:
+			continue
+
+		try:
+			if back_div and back_div.contents[0].name == 'a':
+				page_url = back_div.contents[0]['href']
+				count += 1
+			else:		
+				break
+		except IndexError, KeyError:
+			continue
+
+	print "\tTotal: %s images" % len(img_entries)
 
 conn.commit()
 conn.close()
