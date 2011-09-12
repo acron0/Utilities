@@ -31,6 +31,7 @@ cur.execute("CREATE TABLE images (game_name text, img_url text)")
 
 # set up addToDatabase function
 def add_to_images(cur, game_name, img_url):
+	print '\tAdding %s' % img_url
 	cur.execute( "INSERT INTO images VALUES ('{0}', '{1}')".format(game_name, img_url))
 
 # get html
@@ -86,12 +87,11 @@ for game in games:
 		divs = soup.findAll("div", { "class" : "ngg-gallery-thumbnail"})
 		for div in divs:
 			try:
-				if div.contents and div.contents[1] and div.contents[1].name == 'a':
-					img_url = div.contents[1]['href']
-					img_count+=1
-					add_to_images(cur, game.name, img_url)
-					img_entries.append(img_url)
-			except Exception:
+				img_url = div.findAll('a')[0]['href']
+				img_count+=1
+				add_to_images(cur, game.name, img_url)
+				img_entries.append(img_url)
+			except IndexError, KeyError:
 				continue
 
 		print "\tFound %s images on page %s" % (img_count, page_count)
