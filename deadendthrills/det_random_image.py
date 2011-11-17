@@ -95,7 +95,11 @@ def generate_database():
 		img_entries = []
 
 		while True:
-			result = urllib.urlopen(page_url)
+			try:
+				result = urllib.urlopen(page_url)
+			except IOError, e:
+				print 'FAILED: ' + e
+				continue
 			response = result.read()
 			soup = BeautifulSoup.BeautifulSoup(response)
 
