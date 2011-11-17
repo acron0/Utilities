@@ -28,8 +28,21 @@ def get_random_image_url():
 	return result
 
 def generate_database():
+
 	url = 'http://deadendthrills.com/404/'	# url to generate the 404
 	exclude = ['Print Art']
+	extensions = ['.jpg', '.png', '.gif']	
+		
+	# set up addToDatabase function
+	def add_to_images(conn, game_name, img_url):
+		print '\tAdding %s' % img_url
+		conn.execute( "INSERT INTO images VALUES ('{0}', '{1}')".format(game_name, img_url))
+		
+	# set up addToDatabase function
+	def valid_image(img_url):
+		return img_url[-4:] in extensions
+				
+	# -------------------------------------------------------------------------------------------	
 	
 	print 'Generating database from %s - please wait, this may take a while...' % url
 
@@ -42,22 +55,18 @@ def generate_database():
 		def __str__(self):
 			return self.name
 			
-	# burn existing db
+	# burn existing temp db
+	temp_db_name = 'temp_' + db_name
 	try:
-	   open(db_name, 'r')
-	   os.remove(db_name)
+	   open(temp_db_name, 'r')
+	   os.remove(temp_db_name)
 	except IOError:
 	   pass
 
 	# create table
-	conn = sqlite3.connect(db_name)	
+	conn = sqlite3.connect(temp_db_name)	
 	conn.execute("CREATE TABLE images (game_name text, img_url text)")
-
-	# set up addToDatabase function
-	def add_to_images(game_name, img_url):
-		print '\tAdding %s' % img_url
-		conn.execute( "INSERT INTO images VALUES ('{0}', '{1}')".format(game_name, img_url))
-
+	
 	# get html
 	result = urllib.urlopen(url)
 	response = result.read()
@@ -103,18 +112,21 @@ def generate_database():
 					except IndexError, KeyError:
 						continue
 					
-					img_count+=1
-					add_to_images(game.name, img_url)
-					img_entries.append(img_url)
+					if valid_image(img_url):
+						img_count+=1
+						add_to_images(conn, game.name, img_url)
+						img_entries.append(img_url)
 					
 			# now, try gallery images
 			divs = soup.findAll("div", { "class" : "ngg-gallery-thumbnail"})
 			for div in divs:
 				try:
 					img_url = div.findAll('a')[0]['href']
-					img_count+=1
-					add_to_images(game.name, img_url)
-					img_entries.append(img_url)
+					
+					if valid_image(img_url):
+						img_count+=1
+						add_to_images(conn, game.name, img_url)
+						img_entries.append(img_url)
 				except IndexError, KeyError:
 					continue
 
@@ -139,6 +151,15 @@ def generate_database():
 
 	conn.commit()
 	conn.close()
+	
+	# switch dbs
+	try:
+	   open(db_name, 'r')
+	   os.remove(db_name)
+	except IOError:
+	   pass
+	   
+	os.rename(temp_db_name, db_name)
 	
 def main():
 
