@@ -38,12 +38,14 @@ namespace Utilities
             _actions[key].Add(new EventAction<T>(action));
         }
 
-        public void Trigger<T>(T payload) where T : class
+        public void Send<T>(T payload) where T : class
         {
             Type key = typeof(T);
-            if (_actions.ContainsKey(key))
+            Log.DebugMessage(key.FullName);
+            List<IEventAction> subscriberList = new List<IEventAction>();
+            if (_actions.TryGetValue(key, out subscriberList))
             {
-                _actions[key].ForEach(x =>
+                subscriberList.ForEach(x =>
                 {
                     x.Call(payload);
                 });
