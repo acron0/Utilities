@@ -15,6 +15,7 @@ import re
 import BeautifulSoup
 import sqlite3
 import os
+import htmlentitydefs
 
 db_name = 'deadendthrills.db'
 
@@ -30,7 +31,7 @@ def get_random_image_url():
 def generate_database():
 
 	url = 'http://deadendthrills.com/404/'	# url to generate the 404
-	exclude = ['Print Art']
+	exclude = ['Print Art', 'Blog', 'Community']
 	extensions = ['.jpg', '.png', '.gif']	
 		
 	# set up addToDatabase function
@@ -107,12 +108,12 @@ def generate_database():
 			img_count = 0
 			
 			# start with large images
-			divs = soup.findAll("div", { "class" : "meta" })
+			divs = soup.findAll("div", { "class" : "tagmeta" })
 			for div in divs:
 				links = div.findAll('a', { 'title': None })
 				if links:
 					try:
-						img_url = div.findAll('a', { 'title': None })[0]['href']
+						img_url = links[len(links)-1]['href']
 					except IndexError, KeyError:
 						continue
 					
@@ -122,7 +123,7 @@ def generate_database():
 						img_entries.append(img_url)
 					
 			# now, try gallery images
-			divs = soup.findAll("div", { "class" : "ngg-gallery-thumbnail"})
+			"""divs = soup.findAll("div", { "class" : "ngg-gallery-thumbnail"})
 			for div in divs:
 				try:
 					img_url = div.findAll('a')[0]['href']
@@ -132,19 +133,19 @@ def generate_database():
 						add_to_images(conn, game.name, img_url)
 						img_entries.append(img_url)
 				except IndexError, KeyError:
-					continue
+					continue"""
 
 			print "\tFound %s images on page %s" % (img_count, page_count)
 		
 			# do we have another page?
 			try:
-				back_div = soup.find("div", { "class" : "navback" }).contents[0]
+				back_div = soup.find("div", { "class" : "alignright" }).contents[0]
 			except IndexError, AttributeError:
 				break
 
 			try:
-				if back_div and back_div.contents[0].name == 'a':
-					page_url = back_div.contents[0]['href']
+				if back_div:
+					page_url = back_div['href']
 					page_count += 1
 				else:		
 					break
