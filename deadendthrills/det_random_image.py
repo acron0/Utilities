@@ -31,13 +31,13 @@ def get_random_image_url():
 def generate_database():
 
 	url = 'http://deadendthrills.com/404/'	# url to generate the 404
-	exclude = ['Print Art', 'Blog', 'Community']
+	exclude = ['Print Art', 'Blog', 'Community', 'ModList']
 	extensions = ['.jpg', '.png', '.gif']	
 		
 	# set up addToDatabase function
-	def add_to_images(conn, game_name, img_url):
+	def add_to_images(conn, game_name, game_cat, img_url):
 		print '\tAdding %s' % img_url
-		conn.execute( "INSERT INTO images VALUES ('{0}', '{1}')".format(game_name, img_url))
+		conn.execute( "INSERT INTO images VALUES ('{0}', '{1}', '{2}')".format(game_name, game_cat, img_url))
 		
 	# set up addToDatabase function
 	def valid_image(img_url):
@@ -49,9 +49,10 @@ def generate_database():
 
 	# class for game entries
 	class GameEntry:
-		def __init__(self, name, page):
+		def __init__(self, name, cat_id, page):
 			self.name = name
 			self.page = page
+			self.cat_id = cat_id
 			
 		def __str__(self):
 			return self.name
@@ -66,7 +67,7 @@ def generate_database():
 
 	# create table
 	conn = sqlite3.connect(temp_db_name)	
-	conn.execute("CREATE TABLE images (game_name text, img_url text)")
+	conn.execute("CREATE TABLE images (game_name text, game_cat text, img_url text)")
 	
 	# get html
 	result = urllib.urlopen(url)
@@ -81,15 +82,16 @@ def generate_database():
 	for k in range(len(game_entries)):
 		current = [game_entries[k] for a, b in game_entries[k].attrs if b.find('cat-item') >= 0]
 		try:
+			cat_id = current[0].attrs[0][1].replace('cat-item', '').replace('-', '').strip()
 			if current and current[0].contents[0].string not in exclude:
-				games.append(GameEntry(current[0].contents[0].string, current[0].contents[0].attrs[0][1]))
+				games.append(GameEntry(current[0].contents[0].string, cat_id, current[0].contents[0].attrs[0][1]))
 		except IndexError, AttributeError:
 			pass
 
 	# iterate the games, one by one.
 	for game in games:
 
-		print 'Collecting data for %s ...' % game.name
+		print 'Collecting data for %s (%s) ...' % (game.name, game.cat_id)
 
 		page_url = game.page
 		page_count = 1
@@ -113,13 +115,19 @@ def generate_database():
 				links = div.findAll('a', { 'title': None })
 				if links:
 					try:
-						img_url = links[len(links)-1]['href']
+					
+						for i in range(len(links)):
+							img_url = links[len(links)-(1+i)]['href']
+							if(valid_image(img_url)):
+								break
+							else:
+								img_url = None
 					except IndexError, KeyError:
 						continue
 					
-					if valid_image(img_url):
+					if img_url != None:
 						img_count+=1
-						add_to_images(conn, game.name, img_url)
+						add_to_images(conn, game.name, game.cat_id, img_url)
 						img_entries.append(img_url)
 					
 			# now, try gallery images
