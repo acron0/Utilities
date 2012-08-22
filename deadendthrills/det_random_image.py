@@ -4,9 +4,10 @@ Generates a database of screenshots from the website www.deadendthrills.com
 and randomly returns one.
 
 Usage:
-	--generate 	- Generates the database.
-	--random	- Returns a random image URL from the current database.
-	--help		- Shows this message
+	--generate 		- Generates the database.
+	--random			- Returns a random image URL from the current database.
+	--help				- Shows this message
+	--verbose (-v)	- Enables verbose output
 """
 import sys
 import getopt
@@ -15,7 +16,7 @@ import re
 import BeautifulSoup
 import sqlite3
 import os
-import htmlentitydefs
+import threading
 
 db_name = 'deadendthrills.db'
 
@@ -28,38 +29,107 @@ def get_random_image_url():
 	result = conn.execute("SELECT * FROM images ORDER BY RANDOM() LIMIT 1").fetchall()
 	return result
 
-def generate_database():
+def generate_database(verbose):
 
 	url = 'http://deadendthrills.com/404/'	# url to generate the 404
 	exclude = ['Print Art', 'Blog', 'Community', 'ModList']
 	extensions = ['.jpg', '.png', '.gif']	
+	img_entries = []
 		
 	# set up addToDatabase function
 	def add_to_images(conn, game_name, game_cat, img_url):
-		print '\tAdding %s' % img_url
+		#print '\tAdding %s' % img_url
 		conn.execute( "INSERT INTO images VALUES ('{0}', '{1}', '{2}')".format(game_name, game_cat, img_url))
 		
 	# set up addToDatabase function
 	def valid_image(img_url):
 		return img_url[-4:] in extensions
+		
+	# verbose filtered printing
+	def _print(message):
+		if verbose:
+			print(message)
 				
-	# -------------------------------------------------------------------------------------------	
-	
-	print 'Generating database from %s - please wait, this may take a while...' % url
+	# -------------------------------------------------------------------------------------------
 
 	# class for game entries
-	class GameEntry:
+	class GameEntry  ( threading.Thread ):
 		def __init__(self, name, cat_id, page):
+			super(GameEntry, self).__init__()
 			self.name = name
 			self.page = page
 			self.cat_id = cat_id
+			_print("Found %s  (%s)" % (self.name, self.cat_id))
 			
 		def __str__(self):
 			return self.name
 			
+		def run ( self ):
+		
+			page_count = 1
+			page_url = self.page		
+
+			while True:
+				try:
+					result = urllib.urlopen(page_url)
+				except IOError as e:
+					print "I/O error({0}): {1}".format(e.errno, e.strerror)
+					continue
+				response = result.read()
+				soup = BeautifulSoup.BeautifulSoup(response)
+
+				# filter the html		
+				img_count = 0
+				
+				# start with large images
+				divs = soup.findAll("div", { "class" : "tagmeta" })
+				for div in divs:
+					links = div.findAll('a', { 'title': None })
+					if links:
+						try:
+						
+							for i in range(len(links)):
+								img_url = links[len(links)-(1+i)]['href']
+								if(valid_image(img_url)):
+									break
+								else:
+									img_url = None
+						except IndexError, KeyError:
+							continue
+						
+						if img_url != None:
+							img_count+=1
+							#add_to_images(conn, game.name, game.cat_id, img_url)
+							img_entries.append((self.name, self.cat_id, img_url))
+
+				print "\tFound %s images on page %s" % (img_count, page_count)
+			
+				# do we have another page?
+				try:
+					back_div = soup.find("div", { "class" : "alignright" }).contents[0]
+				except IndexError, AttributeError:
+					break
+
+				try:
+					if back_div:
+						page_url = back_div['href']
+						page_count += 1
+					else:		
+						break
+				except IndexError, KeyError:
+					break
+
+			print "\tTotal: %s images" % len(img_entries)
+		
+	#-------------------------------------------------------------------	
+	
+	print 'Generating database from %s - please wait, this may take a while...' % url	
+			
 	# burn existing temp db
+	_print("Cleaning up any old temporary files...")
 	temp_db_name = 'temp_' + db_name
 	try:
+	   _print("Creating temporary database...")
 	   open(temp_db_name, 'r')
 	   os.remove(temp_db_name)
 	except IOError:
@@ -70,6 +140,7 @@ def generate_database():
 	conn.execute("CREATE TABLE images (game_name text, game_cat text, img_url text)")
 	
 	# get html
+	_print("Fetching games list...")
 	result = urllib.urlopen(url)
 	response = result.read()
 	soup = BeautifulSoup.BeautifulSoup(response)
@@ -88,80 +159,22 @@ def generate_database():
 		except IndexError, AttributeError:
 			pass
 
-	# iterate the games, one by one.
-	for game in games:
+	# start the threads for each game entry
+	for game in games[:1]:
+		_print( 'Collecting data for %s (%s) ...' % (game.name, game.cat_id) )
+		game.start()
 
-		print 'Collecting data for %s (%s) ...' % (game.name, game.cat_id)
-
-		page_url = game.page
-		page_count = 1
-		img_entries = []
-
-		while True:
-			try:
-				result = urllib.urlopen(page_url)
-			except IOError, e:
-				print 'FAILED: ' + e
-				continue
-			response = result.read()
-			soup = BeautifulSoup.BeautifulSoup(response)
-
-			# filter the html		
-			img_count = 0
-			
-			# start with large images
-			divs = soup.findAll("div", { "class" : "tagmeta" })
-			for div in divs:
-				links = div.findAll('a', { 'title': None })
-				if links:
-					try:
-					
-						for i in range(len(links)):
-							img_url = links[len(links)-(1+i)]['href']
-							if(valid_image(img_url)):
-								break
-							else:
-								img_url = None
-					except IndexError, KeyError:
-						continue
-					
-					if img_url != None:
-						img_count+=1
-						add_to_images(conn, game.name, game.cat_id, img_url)
-						img_entries.append(img_url)
-					
-			# now, try gallery images
-			"""divs = soup.findAll("div", { "class" : "ngg-gallery-thumbnail"})
-			for div in divs:
-				try:
-					img_url = div.findAll('a')[0]['href']
-					
-					if valid_image(img_url):
-						img_count+=1
-						add_to_images(conn, game.name, img_url)
-						img_entries.append(img_url)
-				except IndexError, KeyError:
-					continue"""
-
-			print "\tFound %s images on page %s" % (img_count, page_count)
+	# wait for none to be alive.
+	while any( [game.is_alive() for game in games] ):
+		continue
 		
-			# do we have another page?
-			try:
-				back_div = soup.find("div", { "class" : "alignright" }).contents[0]
-			except IndexError, AttributeError:
-				break
-
-			try:
-				if back_div:
-					page_url = back_div['href']
-					page_count += 1
-				else:		
-					break
-			except IndexError, KeyError:
-				break
-
-		print "\tTotal: %s images" % len(img_entries)
-
+	print 'Finished collecting images. Writing database...'
+	
+	for entry in img_entries:
+		_print("Adding image (%s, %s): %s " % entry)
+		add_to_images(conn, entry[0], entry[1], entry[2])
+	
+	# close current db
 	conn.commit()
 	conn.close()
 	
@@ -178,13 +191,18 @@ def main():
 
 	if len(sys.argv) <= 1:
 		print_usage(2)
+		
+	verbose = False
+	if sys.argv.__contains__("-v") or sys.argv.__contains__("--verbose"):
+		verbose = True
+	
 	
 	# process options
 	for o in sys.argv:
 		if o in ("--help"):
 			print_usage(0)
 		if o in ("--generate"):
-			generate_database()
+			generate_database(verbose)
 			sys.exit(0)
 		if o in ("--random"):
 			print get_random_image_url()
