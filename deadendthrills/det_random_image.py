@@ -4,10 +4,10 @@ Generates a database of screenshots from the website www.deadendthrills.com
 and randomly returns one.
 
 Usage:
-	--generate 		- Generates the database.
-	--random			- Returns a random image URL from the current database.
-	--help				- Shows this message
-	--verbose (-v)	- Enables verbose output
+	--generate (-g) 		- Generates the database.
+	--random (-r)			- Returns a random image URL from the current database.
+	--help (-h)				- Shows this message
+	--verbose (-v)			- Enables verbose output
 """
 import sys
 import getopt
@@ -17,6 +17,8 @@ import BeautifulSoup
 import sqlite3
 import os
 import threading
+import time
+import math
 
 db_name = 'deadendthrills.db'
 
@@ -49,6 +51,18 @@ def generate_database(verbose):
 	def _print(message):
 		if verbose:
 			print(message)
+	
+	# progress bar
+	def progress(width, percent):
+		marks = math.floor(width * (percent / 100.0))
+		spaces = math.floor(width - marks)
+	 
+		loader = '[' + ('=' * int(marks)) + (' ' * int(spaces)) + ']'
+	 
+		sys.stdout.write("%s %d%%\r" % (loader, percent))
+		if percent >= 100:
+			sys.stdout.write("\n")
+		sys.stdout.flush()
 				
 	# -------------------------------------------------------------------------------------------
 
@@ -94,7 +108,7 @@ def generate_database(verbose):
 									break
 								else:
 									img_url = None
-						except IndexError, KeyError:
+						except (IndexError, KeyError):
 							continue
 						
 						if img_url != None:
@@ -102,12 +116,12 @@ def generate_database(verbose):
 							#add_to_images(conn, game.name, game.cat_id, img_url)
 							img_entries.append((self.name, self.cat_id, img_url))
 
-				print "\tFound %s images on page %s" % (img_count, page_count)
+				#print "\tFound %s images on page %s" % (img_count, page_count)
 			
 				# do we have another page?
 				try:
 					back_div = soup.find("div", { "class" : "alignright" }).contents[0]
-				except IndexError, AttributeError:
+				except (IndexError, AttributeError):
 					break
 
 				try:
@@ -116,10 +130,10 @@ def generate_database(verbose):
 						page_count += 1
 					else:		
 						break
-				except IndexError, KeyError:
+				except (IndexError, KeyError):
 					break
 
-			print "\tTotal: %s images" % len(img_entries)
+			#print "\tTotal: %s images" % len(img_entries)
 		
 	#-------------------------------------------------------------------	
 	
@@ -156,23 +170,35 @@ def generate_database(verbose):
 			cat_id = current[0].attrs[0][1].replace('cat-item', '').replace('-', '').strip()
 			if current and current[0].contents[0].string not in exclude:
 				games.append(GameEntry(current[0].contents[0].string, cat_id, current[0].contents[0].attrs[0][1]))
-		except IndexError, AttributeError:
+		except (IndexError, AttributeError):
 			pass
 
 	# start the threads for each game entry
-	for game in games[:1]:
+	for game in games:
 		_print( 'Collecting data for %s (%s) ...' % (game.name, game.cat_id) )
 		game.start()
 
 	# wait for none to be alive.
-	while any( [game.is_alive() for game in games] ):
-		continue
+	lastAlive = len(games)
+	progress(50, 0)
+	while True:
+		noof_alive_threads = len([game for game in games if game.is_alive()])
+		if noof_alive_threads == 0:
+			break
+		if lastAlive != noof_alive_threads:
+			lastAlive = noof_alive_threads
+			progress(50, 100.0 - (100.0 * float(noof_alive_threads)/float(len(games))))
 		
-	print 'Finished collecting images. Writing database...'
+	progress(50, 100)
+	print 'Writing database...'
 	
-	for entry in img_entries:
+	for i in range(0, len(img_entries)):
+		entry = img_entries[i]
 		_print("Adding image (%s, %s): %s " % entry)
 		add_to_images(conn, entry[0], entry[1], entry[2])
+		progress(50, 100.0 * float(i)/float(len(img_entries)))
+		
+	progress(50, 100)
 	
 	# close current db
 	conn.commit()
@@ -199,12 +225,12 @@ def main():
 	
 	# process options
 	for o in sys.argv:
-		if o in ("--help"):
+		if o in ("--help") or o in ("-h"):
 			print_usage(0)
-		if o in ("--generate"):
+		if o in ("--generate") or o in ("-g"):
 			generate_database(verbose)
 			sys.exit(0)
-		if o in ("--random"):
+		if o in ("--random") or o in ("-r"):
 			print get_random_image_url()
 			sys.exit(0)
 	
