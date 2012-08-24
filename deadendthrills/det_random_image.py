@@ -53,7 +53,7 @@ def generate_database(verbose, single_thread):
 		if verbose:
 			print(message)
 	
-	# progress bar
+	# progress bar - http://snipplr.com/view/25735/
 	def progress(width, percent):
 		marks = math.floor(width * (percent / 100.0))
 		spaces = math.floor(width - marks)
@@ -200,7 +200,7 @@ def generate_database(verbose, single_thread):
 				progress(50, 100.0 - (100.0 * float(noof_alive_threads)/float(len(games))))
 		
 	progress(50, 100)
-	print 'Writing database...'
+	print 'Writing %d images to the database...' % len(img_entries)
 	
 	for i in range(0, len(img_entries)):
 		entry = img_entries[i]
