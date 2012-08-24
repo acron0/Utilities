@@ -6,8 +6,9 @@ and randomly returns one.
 Usage:
 	--generate (-g) 		- Generates the database.
 	--random (-r)			- Returns a random image URL from the current database.
-	--help (-h)				- Shows this message
+	--help (-h)			- Shows this message
 	--verbose (-v)			- Enables verbose output
+	--single (-s)			- Uses single thread (less intense, better for poor connections; will take a lot longer)
 """
 import sys
 import getopt
@@ -31,7 +32,7 @@ def get_random_image_url():
 	result = conn.execute("SELECT * FROM images ORDER BY RANDOM() LIMIT 1").fetchall()
 	return result
 
-def generate_database(verbose):
+def generate_database(verbose, single_thread):
 
 	url = 'http://deadendthrills.com/404/'	# url to generate the 404
 	exclude = ['Print Art', 'Blog', 'Community', 'ModList']
@@ -172,22 +173,31 @@ def generate_database(verbose):
 				games.append(GameEntry(current[0].contents[0].string, cat_id, current[0].contents[0].attrs[0][1]))
 		except (IndexError, AttributeError):
 			pass
+			
 
-	# start the threads for each game entry
-	for game in games:
-		_print( 'Collecting data for %s (%s) ...' % (game.name, game.cat_id) )
-		game.start()
-
-	# wait for none to be alive.
-	lastAlive = len(games)
 	progress(50, 0)
-	while True:
-		noof_alive_threads = len([game for game in games if game.is_alive()])
-		if noof_alive_threads == 0:
-			break
-		if lastAlive != noof_alive_threads:
-			lastAlive = noof_alive_threads
-			progress(50, 100.0 - (100.0 * float(noof_alive_threads)/float(len(games))))
+	
+	# start the threads for each game entry
+	single_count = 0
+	for game in games:
+			
+		if not single_thread:
+			game.start()
+		else:
+			game.run()
+			single_count += 1
+			progress(50, (100.0 * float(single_count)/float(len(games))))
+	
+	# wait for none to be alive.
+	if not single_thread:
+		lastAlive = len(games)
+		while True:
+			noof_alive_threads = len([game for game in games if game.is_alive()])
+			if noof_alive_threads == 0:
+				break
+			if lastAlive != noof_alive_threads:
+				lastAlive = noof_alive_threads
+				progress(50, 100.0 - (100.0 * float(noof_alive_threads)/float(len(games))))
 		
 	progress(50, 100)
 	print 'Writing database...'
@@ -218,17 +228,15 @@ def main():
 	if len(sys.argv) <= 1:
 		print_usage(2)
 		
-	verbose = False
-	if sys.argv.__contains__("-v") or sys.argv.__contains__("--verbose"):
-		verbose = True
-	
+	verbose 	= sys.argv.__contains__("-v") or sys.argv.__contains__("--verbose")
+	single 		= sys.argv.__contains__("-s") or sys.argv.__contains__("--single")	
 	
 	# process options
 	for o in sys.argv:
 		if o in ("--help") or o in ("-h"):
 			print_usage(0)
 		if o in ("--generate") or o in ("-g"):
-			generate_database(verbose)
+			generate_database(verbose, single)
 			sys.exit(0)
 		if o in ("--random") or o in ("-r"):
 			print get_random_image_url()
