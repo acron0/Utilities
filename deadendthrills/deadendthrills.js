@@ -11,8 +11,9 @@ var _minDelay;
 var _imageA, _imageB;
 
 // - the jsonp callback url
-var _imageCallbackUrl = 'http://localhost:8000/deadendthrills/jsonp?callback=?';
-//var _imageCallbackUrl = 'http://teamwoods.org/deadendthrills/jsonp?callback=?';
+//var _imageCallbackUrl = 'http://localhost:8000/deadendthrills';
+//var _imageCallbackUrl = 'http://teamwoods.org/deadendthrills/jsonp_callback=?';
+var _imageCallbackUrl = 'http://localhost:8000/jsonp_callback=?';
 
 
 // functions
@@ -22,20 +23,19 @@ var _imageCallbackUrl = 'http://localhost:8000/deadendthrills/jsonp?callback=?';
 function getNewImage(startMinDelay) 
 {	
 	// get image url from jsonp	
-	var jqxhr = $.getJSON(randomImageUrl, function(json){data = json});
+	var jqxhr = $.getJSON(_imageCallbackUrl, function(json){data = json});
 	jqxhr.success(successFunction);
 	jqxhr.error(errorFunction);
-	
 }
 
 // - the jsonp callback returned successfully
 function successFunction()
 {
-	
+	console.log(data)
 }
 
 // - the jsonp callback returned an error
-function errorFunction() 
+function errorFunction(XMLHttpRequest,textStatus, errorThrown) 
 {
 	console.log("An error occurred.");
 }
@@ -52,6 +52,6 @@ $(document).ready(function()
 	_entryPoint.appendChild(_imageA);
 	_entryPoint.appendChild(_imageB);
 	
-	//getNewImage(false);
+	getNewImage(false);
 
 });

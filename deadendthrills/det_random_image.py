@@ -9,6 +9,7 @@ Usage:
 	--help (-h)			- Shows this message
 	--verbose (-v)			- Enables verbose output
 	--single (-s)			- Uses single thread (less intense, better for poor connections; will take a lot longer)
+	--limit (-l) <number>	- Limits the number of games in the database
 """
 import sys
 import getopt
@@ -27,15 +28,22 @@ def print_usage(code):
 	print __doc__
 	sys.exit(code)	
 	
-def get_random_image_url():
-	conn = sqlite3.connect(db_name)
+def get_random_image(db_location = db_name):
+	conn = sqlite3.connect(db_location)
 	result = conn.execute("SELECT * FROM images ORDER BY RANDOM() LIMIT 1").fetchall()
+	conn.close()
 	return result
 
-def generate_database(verbose, single_thread):
+def generate_database(verbose, single_thread, games_limit):
 
 	url = 'http://deadendthrills.com/404/'	# url to generate the 404
-	exclude = ['Print Art', 'Blog', 'Community', 'ModList']
+	exclude = [
+				'Print Art',
+				'Blog',
+				'Community',
+				'ModList', 
+				'Leaving Skyrim'
+				]
 	extensions = ['.jpg', '.png', '.gif']	
 	img_entries = []
 		
@@ -139,6 +147,8 @@ def generate_database(verbose, single_thread):
 	#-------------------------------------------------------------------	
 	
 	print 'Generating database from %s - please wait, this may take a while...' % url	
+	if games_limit > 0:
+		print "(Limiting to %d games.)" % d
 			
 	# burn existing temp db
 	_print("Cleaning up any old temporary files...")
@@ -223,20 +233,32 @@ def generate_database(verbose, single_thread):
 	   
 	os.rename(temp_db_name, db_name)
 	
+def find_games_limit(args):
+	index = -1
+	if args.__contains__("-l"):
+		index = args.index("-l") + 1
+	elif args.__contains__("--limit"):
+		index = args.index("--limit") + 1
+	else:
+		return 0
+	return int(args[index])
+	
 def main():
 
 	if len(sys.argv) <= 1:
 		print_usage(2)
 		
 	verbose 	= sys.argv.__contains__("-v") or sys.argv.__contains__("--verbose")
-	single 		= sys.argv.__contains__("-s") or sys.argv.__contains__("--single")	
+	single 		= sys.argv.__contains__("-s") or sys.argv.__contains__("--single")
 	
+	games_limit = find_games_limit(sys.argv)
+		
 	# process options
 	for o in sys.argv:
 		if o in ("--help") or o in ("-h"):
 			print_usage(0)
 		if o in ("--generate") or o in ("-g"):
-			generate_database(verbose, single)
+			generate_database(verbose, single, games_limit)
 			sys.exit(0)
 		if o in ("--random") or o in ("-r"):
 			print get_random_image_url()
