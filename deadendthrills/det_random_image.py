@@ -261,7 +261,7 @@ def main():
 			generate_database(verbose, single, games_limit)
 			sys.exit(0)
 		if o in ("--random") or o in ("-r"):
-			print get_random_image_url()
+			print get_random_image()
 			sys.exit(0)
 	
 	print 'Undefined usage: %s\n' % sys.argv[1:]
