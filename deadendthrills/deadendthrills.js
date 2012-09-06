@@ -13,6 +13,9 @@ var _fadeOverTime;
 // - the image array
 var _images = [];
 
+// - the game titles array
+var _gameTitles = [];
+
 // - current index
 var _currentImageIndex;
 
@@ -21,6 +24,15 @@ var _preloader;
 
 // - boolean, true if loading
 var _loading = false;
+
+// - boolean, if true then minDelay has passed
+var _minDelayPassed = true;
+
+// - boolean, if true then game titles are links
+var _gameTitlesAreLinks = true;
+
+// - counts the number of image loads
+var _successCounter = 0;
 
 // - the jsonp callback url
 //var _imageCallbackUrl = 'http://localhost:8000/deadendthrills';
@@ -51,7 +63,22 @@ function getNewImage(startMinDelay, imgIndex)
 function successFunction()
 {
 	console.log("[deadendthrills] Loading " + data.url);
-	$(_images[_currentImageIndex]).attr("src", data.url);	
+	$(_images[_currentImageIndex]).attr("src", data.url);
+	_gameTitles[_currentImageIndex].html(data.name);
+	
+	if(_successCounter > 0)
+	{
+		_minDelayPassed = false;
+		setTimeout(function()
+		{
+			_minDelayPassed = true;
+			if(_loading == false)
+				performTransition();
+				
+		},	_minDelay);
+	}
+	
+	++_successCounter;
 }
 
 // - the jsonp callback returned an error
@@ -70,17 +97,11 @@ function createImage()
 	return newImage;
 }
 
-// - call back once the image has loaded
-function imageLoadedCallback(object)
-{	
-	_loading = false;
-	
-	if(_preloader != null)
-	{
-		$(_preloader).remove();
-	}
-	
-	$(_images[_currentImageIndex]).css({"display":"block", "opacity":"0"});
+// - performs the transition
+function performTransition()
+{
+	$(_images[_currentImageIndex])		.css({"display":"block", "opacity":"0"});
+	$(_gameTitles[_currentImageIndex])	.css({"display":"block", "opacity":"0"});	
 	
 	for(var i = 0; i < NOOF_IMAGES; ++i)
 	{	
@@ -88,6 +109,7 @@ function imageLoadedCallback(object)
 		$(_images[i]).animate(
 		{
 			opacity: i == _currentImageIndex ? 1 : 0,
+			
 		}, _fadeOverTime, function() 
 			{
 				if(this == _images[_currentImageIndex] && !_loading)
@@ -100,7 +122,24 @@ function imageLoadedCallback(object)
 				}
 			}
 		);
+		
+		$(_gameTitles[i]).animate({ opacity: i == _currentImageIndex ? 1 : 0 }, _fadeOverTime);
 	}
+}
+
+// - call back once the image has loaded
+function imageLoadedCallback(object)
+{	
+	_loading = false;
+	
+	if(_preloader != null)
+	{
+		$(_preloader).remove();
+		_preloader = null;
+	}
+	
+	if(_minDelayPassed)
+		performTransition();
 }
 
 // - callback if the image load errors
@@ -118,7 +157,7 @@ $(document).ready(function()
 	_fadeOverTime = parseInt(_entryPoint.getAttribute("fadeover"), 10);
 	
 	_preloader = document.getElementById("deadendthrills_preloader");
-	
+		
 	var innerDiv = document.createElement('div');
 	$(innerDiv).attr("style","width:100%;margin:0px auto;");
 
@@ -126,6 +165,24 @@ $(document).ready(function()
 	{
 		_images[i] = createImage();
 		innerDiv.appendChild(_images[i]);
+	}
+	
+	// check for gameTitle
+	gameTitle = document.getElementById("deadendthrills_game_title");
+	if(gameTitle != null)
+	{
+		ml = gameTitle.getAttribute("make_link");
+		_gameTitlesAreLinks = !( ml != null && ( ml == "false" || ml == "0" ) );	
+			
+		for(var i = 0; i < NOOF_IMAGES; ++i)
+		{
+			_gameTitles[i] = $(gameTitle).clone()
+			_gameTitles[i].css("display", "none");
+			_gameTitles[i].html("Hello, World #" + (i+1));
+			
+			_gameTitles[i].appendTo(innerDiv);
+		}
+		$(gameTitle).remove();
 	}
 	
 	_entryPoint.appendChild(innerDiv);
