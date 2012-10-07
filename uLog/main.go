@@ -9,16 +9,6 @@ import (
 	"strings"
 )
 
-/////////////////////////////////////////////////////////////////////////////
-
-type Hello struct{}
-
-func (h Hello) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Hello!")
-}
-
-////////////////////
-
 type route struct {
     pattern *regexp.Regexp
     handler http.Handler
@@ -99,6 +89,7 @@ func startServer(portStr string) error {
 	h.HandleStrFunc("/log/.*$", logHandler);
 	h.HandleStrFunc("/error/.*$", errorHandler);
 	h.HandleStrFunc("/warn/.*$", warningHandler);
+	h.HandleStrFunc("/crossdomain.xml$", crossDomainHandler);
 	
 	err := http.ListenAndServe(":"+portStr, h)
 	if err != nil {
@@ -136,4 +127,7 @@ func warningHandler(w http.ResponseWriter, r *http.Request) {
 		i += len(match);
 		log.Print("[WARNING] ", r.URL.Path[i:]    );
 	}
+}
+func crossDomainHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "<cross-domain-policy><allow-access-from domain=\"*\"/></cross-domain-policy>");
 }
