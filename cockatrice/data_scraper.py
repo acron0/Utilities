@@ -66,7 +66,8 @@ def get_cards(sets_name_list):
 		card_dict[key] = tds_list[index].text.encode("UTF-8")
 		index += 1
 		return index
-	
+		
+	# --------------------------------------------------
 	class CardSetEntry  ( threading.Thread ):
 		def __init__(self, name):
 			super(CardSetEntry, self).__init__()
@@ -120,10 +121,14 @@ def get_cards(sets_name_list):
 					current_card["set/rarity"] = tds[td_idx + 1].text.encode("UTF-8")
 				elif td.text.encode("UTF-8") == "Color:":
 					current_card["color"] = tds[td_idx + 1].text.encode("UTF-8")
-				
+					
+			# don't forget the last one :)		
+			self.cards.append( current_card )	
+# --------------------------------------------------			
+			
 	threads = list()
-	#for set in sets_name_list[4:5]:
-	threads.append(CardSetEntry("Innistrad"))
+	for set in sets_name_list:
+		threads.append(CardSetEntry(set))
 	
 	for t in threads:
 		t.start()
