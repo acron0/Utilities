@@ -83,30 +83,47 @@ def get_cards(sets_name_list):
 			cards = b.findAll('div', { 'class': 'textspoiler' })
 			
 			noof_tds_per_entry = 13
-			count = 0
 			tds = cards[0].find('table').findAll('td')
 			runs = len(tds)/noof_tds_per_entry
-			for index in range(runs):
+			
+			cards_collection = []
+			current_card = {}
+			
+			for td_idx in range(len(tds)):
+				td = tds[td_idx]
 				
-				card = dict()
-				count = add_field(card, "name",  		tds, count)
+				if td.has_key('colspan'):
+					continue
 				
-				# get img
-				url = tds[count-1].findChild('a')["href"]
-				id = url[url.index('=') + 1:]
-				card["img_url"] = img_url % int(id)
+				if not td.text.encode("UTF-8").endswith(':'):
+					continue
+					
+				if len(current_card) != 0 and td.text.encode("UTF-8") == "Name:":
+					self.cards.append( current_card )
+					current_card = {}
 				
-				count = add_field(card, "cost",  		tds, count)
-				count = add_field(card, "type",  		tds, count)
-				count = add_field(card, "pt",  			tds, count)
-				count = add_field(card, "text",  		tds, count)
-				count = add_field(card, "set/rarity",  	tds, count)	
-				count += 1 # colspan
-				self.cards.append( card )
-	
+				if   td.text.encode("UTF-8") == "Name:":
+					current_card["name"] = tds[td_idx + 1].text.encode("UTF-8")
+					url = tds[td_idx + 1].findChild('a')["href"]
+					id = url[url.index('=') + 1:]
+					current_card["img_url"] = img_url % int(id)					
+					
+				elif td.text.encode("UTF-8") == "Cost:":
+					current_card["cost"] = tds[td_idx + 1].text.encode("UTF-8")
+				elif td.text.encode("UTF-8") == "Type:":
+					current_card["type"] = tds[td_idx + 1].text.encode("UTF-8")
+				elif td.text.encode("UTF-8") == "Pow/Tgh:":
+					current_card["pt"] = tds[td_idx + 1].text.encode("UTF-8")
+				elif td.text.encode("UTF-8") == "Rules Text:":
+					current_card["text"] = tds[td_idx + 1].text.encode("UTF-8")
+				elif td.text.encode("UTF-8") == "Set/Rarity:":
+					current_card["set/rarity"] = tds[td_idx + 1].text.encode("UTF-8")
+				elif td.text.encode("UTF-8") == "Color:":
+					current_card["color"] = tds[td_idx + 1].text.encode("UTF-8")
+				
 	threads = list()
-	for set in sets_name_list:
-		threads.append(CardSetEntry(set))
+	#for set in sets_name_list[4:5]:
+	threads.append(CardSetEntry("Innistrad"))
 	
 	for t in threads:
 		t.start()

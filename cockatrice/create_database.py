@@ -28,8 +28,12 @@ def format_card_dict(card_dict, set_name):
 
 	result = dict()	
 	
-	valid_colors = ['B', 'U', 'W', 'R', 'G']
+	valid_colors = [('Black', 'B'), ('Blue', 'U'), ('White', 'W'), ('Red', 'R'), ('Green','G')]
 	valid_rarity = ['Mythic Rare', 'Rare', 'Uncommon', 'Common', 'Special', 'Promo']
+	
+	# edge cases
+	if not card_dict.has_key("pt"):
+		card_dict["pt"] = ''
 	
 	result["name"] 		= card_dict["name"]
 	result["type"] 		= card_dict["type"]
@@ -49,8 +53,14 @@ def format_card_dict(card_dict, set_name):
 			new_rarity = rarity
 	
 	# deduce colors
-	result["color"] = [x for x in list(set(list(card_dict["cost"]))) if x in valid_colors]
-	
+	if not card_dict.has_key('color'):
+		result["color"] = [x for x in list(set(list(card_dict["cost"]))) if x in [c[1] for c in valid_colors]]
+	else:
+		result["color"] = []
+		card_cols = card_dict["color"].split('/')
+		for c in valid_colors:
+			if c[0] in card_cols:
+				result["color"].append(c[1])
 	return result
 	
 # -------------------------------------------------------------------
