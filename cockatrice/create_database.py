@@ -37,8 +37,16 @@ def format_card_dict(card_dict, set_name):
 	result["text"] 		= card_dict["text"]
 	result["cost"] 		= card_dict["cost"]
 	result["set"]   	= set_name
-	result["rarity"] 	= card_dict["set/rarity"].replace(set_name,'').strip()
 	result["img"]		= card_dict["img_url"]
+	
+	# rarities may differ by set but we don't *really* care so pick the first one we encounter
+	rarest_idx = len(card_dict["set/rarity"])
+	new_rarity = ""
+	for rarity in valid_rarity:
+		idx = card_dict["set/rarity"].find(rarity)
+		if idx != -1 and idx < rarest_idx:
+			rarest_idx = idx
+			new_rarity = rarity
 	
 	# deduce colors
 	result["color"] = [x for x in list(set(list(card_dict["cost"]))) if x in valid_colors]
