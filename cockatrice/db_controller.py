@@ -8,8 +8,8 @@ def open_db(connection, name):
 	db = connection[name]
 	return db
 	
-def insert_set(db, short_name, long_name):	
-	set = {"short_name":short_name, "long_name":long_name}
+def insert_set(db, name, img):	
+	set = {"img":img, "name":name}
 	db.sets.insert(set)
 	
 def insert_card(db, index, card_data):

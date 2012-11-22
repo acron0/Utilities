@@ -6,6 +6,7 @@ import sys, os
 import xml.etree.ElementTree as ET
 from card_number import CardNumber
 from db_controller import *
+from data_scraper import *
 
 caps_dict = dict()
 
@@ -22,48 +23,30 @@ def remove_accents(text):
 	text = map(__replace, text)
 	print text
 	return ''.join(text)
-	
-def element_to_array(element):
+		
+def format_card_dict(card_dict, set_name):
 
 	result = dict()	
 	
-	# early out if no attributes and no children.
-	if len(element.attrib) == 0 and len(element.getchildren()) == 0:
-		if element.text != None and len(element.text.strip()) != 0:
-			result.update({element.tag:element.text.strip()})
-		else:
-			result.update({element.tag:""})
-		return result
-
-	# create dict for this tag
-	result.update({element.tag:dict()})
+	valid_colors = ['B', 'U', 'W', 'R', 'G']
+	valid_rarity = ['Mythic Rare', 'Rare', 'Uncommon', 'Common', 'Special', 'Promo']
 	
-	# if value, create value tag
-	if element.text != None and len(element.text.strip()) != 0:
-		result[element.tag].update({'value':element.text.strip()})
-		
-	# add attributes
-	for v in element.attrib:
-		result[element.tag].update ({v:element.attrib[v]})
-
-	# add children
-	for child in element.getchildren():
-		to_add = element_to_array(child)
-		if result.has_key(element.tag) and result[element.tag].has_key(to_add.keys()[0]):
-			# add as list
-			dupe_list = []
-			if isinstance(result[element.tag][to_add.keys()[0]],list):
-				dupe_list = result[element.tag][to_add.keys()[0]]
-			else:
-				dupe_list.append(result[element.tag][to_add.keys()[0]])
-			dupe_list.append(to_add.values()[0])
-			result[element.tag][to_add.keys()[0]] = dupe_list
-		else:
-			result[element.tag].update(to_add)
+	result["name"] 		= card_dict["name"]
+	result["type"] 		= card_dict["type"]
+	result["pt"] 		= card_dict["pt"]
+	result["text"] 		= card_dict["text"]
+	result["cost"] 		= card_dict["cost"]
+	result["set"]   	= set_name
+	result["rarity"] 	= card_dict["set/rarity"].replace(set_name,'').strip()
+	result["img"]		= card_dict["img_url"]
+	
+	# deduce colors
+	result["color"] = [x for x in list(set(list(card_dict["cost"]))) if x in valid_colors]
 	
 	return result
-
-def create_database(xml_file):
+	
+# -------------------------------------------------------------------
+def create_database_from_scrape():
 
 	#
 	conn = connect()
@@ -71,34 +54,26 @@ def create_database(xml_file):
 	clean(db)
 	
 	#
-	tree = ET.parse(xml_file)
-	root = tree.getroot()
-	if root.tag != "cockatrice_carddatabase":
-		print "Not a valid Cockatrice database file: %s" % root.tag
-		return
+	print "Generating a new database via scraper...(this may take a while)"
 	
-	print "Converting Cockatrice Database - Version %s" % root.attrib["version"]
-
-	sets  = root.find("sets")
-	cards = root.find("cards")
+	sets = get_sets()
+	cards = get_cards([s["name"] for s in sets])	
 	
 	# --------------------
 	for child in sets:
-		insert_set(db, child.find("name").text, child.find("longname").text)		
+		insert_set(db, child["name"], child["img"])	
 		
-	print "Found %d set(s)..." % len(sets)
-	
 	# --------------------
 	cn = CardNumber()
-	for child in cards:
-		name = child.find("name").text
-		crd = element_to_array(child)
-		insert_card(db, str(cn), crd.values()[0])
-		cn.increment()
-		
-	print "Found %d cards(s)..." % len(cards)	
+	for card_set in cards:
+		for card in card_set[1]:
+			name = card["name"]
+			crd = format_card_dict(card, card_set[0])
+			insert_card(db, str(cn), crd)
+			cn.increment()	
 	
 	close(conn)	
-
+	
+# -------------------------------------------------------------------
 if __name__ == "__main__":
-	create_database(sys.argv[1])
+		create_database_from_scrape()

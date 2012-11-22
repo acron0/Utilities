@@ -17,7 +17,7 @@ def get_sets():
 		"Alpha Edition" : "Limited Edition Alpha",
 		"Beta Edition" : "Limited Edition Beta"
 	}
-	
+		
 	end = False
 	complete_pair = dict()
 	for td in tables[magic_index_number].tr.findAll('td'):
@@ -53,10 +53,13 @@ def get_sets():
 				complete_pair = dict()	
 		if end:
 			break
+			
+	s.reverse() # reverse so oldest first (number system should be preserved)
 	return s
 		
 def get_cards(sets_name_list):
 	cards_url = 'http://gatherer.wizards.com/Pages/Search/Default.aspx?output=spoiler&method=text&set=["%s"]&special=true'
+	img_url = 'http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=%d&type=card'
 	
 	def add_field(card_dict, key, tds_list, index):
 		index += 1
@@ -87,6 +90,12 @@ def get_cards(sets_name_list):
 				
 				card = dict()
 				count = add_field(card, "name",  		tds, count)
+				
+				# get img
+				url = tds[count-1].findChild('a')["href"]
+				id = url[url.index('=') + 1:]
+				card["img_url"] = img_url % int(id)
+				
 				count = add_field(card, "cost",  		tds, count)
 				count = add_field(card, "type",  		tds, count)
 				count = add_field(card, "pt",  			tds, count)
@@ -107,6 +116,8 @@ def get_cards(sets_name_list):
 		
 	for t in threads:
 		print "'%s' returned %d cards..." % (t,len(t.cards))
+		
+	return [(t.name, t.cards) for t in threads]
 
 if __name__ == "__main__":
 	sets = get_sets()
