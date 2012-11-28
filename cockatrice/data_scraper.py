@@ -133,7 +133,7 @@ def get_cards(sets_name_list, single_threaded):
 	for t in threads:
 		t.start()
 		if single_threaded:
-			print "Started thread for ''..." % str(t)
+			print "Started thread for '%s'..." % str(t)
 			while t.is_alive():
 				pass
 			
