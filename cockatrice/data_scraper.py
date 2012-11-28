@@ -57,7 +57,7 @@ def get_sets():
 	s.reverse() # reverse so oldest first (number system should be preserved)
 	return s
 		
-def get_cards(sets_name_list):
+def get_cards(sets_name_list, single_threaded):
 	cards_url = 'http://gatherer.wizards.com/Pages/Search/Default.aspx?output=spoiler&method=text&set=["%s"]&special=true'
 	img_url = 'http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=%d&type=card'
 	
@@ -132,9 +132,13 @@ def get_cards(sets_name_list):
 	
 	for t in threads:
 		t.start()
-		
-	while len([t for t in threads if t.is_alive()]) != 0:
-		pass
+		if single_threaded:
+			while t.is_alive():
+				pass
+			
+	if not single_threaded:	
+		while len([t for t in threads if t.is_alive()]) != 0:
+			pass
 		
 	for t in threads:
 		print "'%s' returned %d cards..." % (t,len(t.cards))

@@ -64,7 +64,7 @@ def format_card_dict(card_dict, set_name):
 	return result
 	
 # -------------------------------------------------------------------
-def create_database_from_scrape():
+def create_database_from_scrape(single_threaded):
 
 	#
 	conn = connect()
@@ -75,7 +75,7 @@ def create_database_from_scrape():
 	print "Generating a new database via scraper...(this may take a while)"
 	
 	sets = get_sets()
-	cards = get_cards([s["name"] for s in sets])	
+	cards = get_cards([s["name"] for s in sets], single_threaded)	
 	
 	# --------------------
 	for child in sets:
@@ -94,4 +94,8 @@ def create_database_from_scrape():
 	
 # -------------------------------------------------------------------
 if __name__ == "__main__":
-		create_database_from_scrape()
+	single_thread = False
+	if "-s" in sys.argv
+		single_thread = True
+		print "(Running in single-threaded mode...)"
+	create_database_from_scrape(single_thread)
