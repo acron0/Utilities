@@ -95,7 +95,7 @@ def create_database_from_scrape(single_threaded):
 # -------------------------------------------------------------------
 if __name__ == "__main__":
 	single_thread = False
-	if "-s" in sys.argv
+	if "-s" in sys.argv:
 		single_thread = True
 		print "(Running in single-threaded mode...)"
 	create_database_from_scrape(single_thread)
