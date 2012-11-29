@@ -45,12 +45,13 @@ def format_card_dict(card_dict, set_name):
 	
 	# rarities may differ by set but we don't *really* care so pick the first one we encounter
 	rarest_idx = len(card_dict["set/rarity"])
-	new_rarity = ""
+	new_rarity = card_dict["set/rarity"]
 	for rarity in valid_rarity:
 		idx = card_dict["set/rarity"].find(rarity)
 		if idx != -1 and idx < rarest_idx:
 			rarest_idx = idx
 			new_rarity = rarity
+	result["rarity"] = new_rarity
 	
 	# deduce colors
 	if not card_dict.has_key('color'):
