@@ -145,7 +145,3 @@ def get_cards(sets_name_list, single_threaded):
 		print "'%s' returned %d cards..." % (t,len(t.cards))
 		
 	return [(t.name, t.cards) for t in threads]
-
-if __name__ == "__main__":
-	sets = get_sets()
-	cards = get_cards([s["name"] for s in sets])
